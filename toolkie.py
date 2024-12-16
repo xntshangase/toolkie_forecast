@@ -11,9 +11,9 @@ uploaded_file = st.file_uploader("Upload a single Excel file containing all raw 
 
 st.write("## Parameters")
 
-historical_horizon_period_start = st.number_input("Historical Horizon Start (Fin_Yr_Wk eg 202430)", value=202530, step=1)
+historical_horizon_period_start = st.number_input("Historical Horizon Start (Fin_Yr_Wk eg 202430)", value=202440, step=1)
 historical_horizon_period_end = st.number_input("Historical Horizon End (Fin_Yr_Wk eg 202430)", value=202533, step=1)
-min_acceptable_margin = st.number_input("Minimum Acceptable Margin (e.g. 0.29 for 29%)", value=0.29, step=0.01)
+min_acceptable_margin = st.number_input("Minimum Acceptable Margin (e.g. 0.29 for 29%)", value=0.35, step=0.01)
 expected_period_start = st.number_input("Expected Period Start (Fin_Yr_Wk eg 202430)", value=202529, step=1)
 expected_period_end = st.number_input("Expected Period End (Fin_Yr_Wk eg 202430)", value=202552, step=1)
 fin_year = st.number_input("Financial Year (e.g. 2025)", value=2025, step=1)
@@ -37,6 +37,7 @@ if st.button("Forecast"):
         sales_data_df['YearWeek'] = sales_data_df['Fin Year'] * 100 + sales_data_df['Week']
         
         # Get the latest completed week (based on max stock units)
+        weeksumsales = []
         weeksumsales = sales_data_df.groupby('YearWeek')['Actual Current Stock Units'].sum().reset_index()
         max_stock_row = weeksumsales.loc[weeksumsales['Actual Current Stock Units'].idxmax()]
         max_yearweek = max_stock_row['YearWeek']
@@ -64,92 +65,111 @@ if st.button("Forecast"):
             st.error("The uploaded data must contain 'Actual Sales Margin %' column.")
             st.stop()
         
+        #4 Convert 'Actual Sales Margin %' to numeric
         sales_data_df['Actual Sales Margin %'] = pd.to_numeric(sales_data_df['Actual Sales Margin %'], errors='coerce')
         sales_data_df['YearWeek'] = pd.to_numeric(sales_data_df['YearWeek'], errors='coerce')
+        sales_data_dfuse = sales_data_df #saving for later in case I have to rerun
+        #sales_data_df.to_parquet('sales_data_df.parquet', index=False)
+        # Step 1: Drop rows where 'Fin Year' is "-"
+        sales_data_dfere = sales_data_df[sales_data_df['Fin Year'] != "-"] #this does nothing because sales_data_dfere isn't being used anywhere else
 
-        # Calculate average sales in the historical horizon
+
+        #5 Calculation 1: Average Sales
+        #5.1  Convert YearWeek to integers, so we can sort
+        sales_data_df['YearWeek'] = pd.to_numeric(sales_data_df['YearWeek'], errors='coerce')
+        #5.2 Calculate the average sales for each product ID I use this to determine "enough" stock, where stock is less than this its deemed that the week didn't have enough stock
         average_sales1 = sales_data_df[
-            (sales_data_df['YearWeek'] >= historical_horizon_period_start) &
+            (sales_data_df['YearWeek'] >= historical_horizon_period_start)&
             (sales_data_df['YearWeek'] <= historical_horizon_period_end)
         ].groupby('SKU ID')['Actual Sales Units'].mean().reset_index()
         average_sales1.columns = ['SKU ID', 'Average Sales']
+        st.write(average_sales1[average_sales1['SKU ID']==4590373])
+        #5.3 Merge the average sales back to the filtered DataFrame
+        sales_data_df2 = []
+        sales_data_df2 = sales_data_df.merge(average_sales1, on='SKU ID')
 
-        sales_data_df2 = sales_data_df.merge(average_sales1, on='SKU ID', how='left')
-
-        # Create HRN column
+        #6 creates a column that limits the data to the historical horizon chosen "HRN" stands for Sales Horizon
         sales_data_df2['HRN'] = np.where(
-            (sales_data_df2['YearWeek'] >= historical_horizon_period_start) &
-            (sales_data_df2['YearWeek'] <= historical_horizon_period_end),
-            1,
+            (sales_data_df2['YearWeek'] >= historical_horizon_period_start) & 
+            (sales_data_df2['YearWeek'] <= historical_horizon_period_end), 
+            1, 
             0
         )
-
-        # OPP column
+        st.write(sales_data_df2[sales_data_df2['SKU ID']==4590373])
+        #7 creating a column that returns 1 where the stock threshold is met i.e (opening_stock)''OPP'' > (average_sales*stock_threshold) - this will be used to exclude weeks in which we didn't have enough stock
         sales_data_df2['OPP'] = np.where(
-            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= sales_data_df2['Average Sales'] * stock_threshold) &
-            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2) &
-            (sales_data_df2['HRN'] == 1),
-            1,
+            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= sales_data_df2['Average Sales'] * stock_threshold) & 
+            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)&
+            (sales_data_df2['HRN'] == 1), 
+            1, 
             0
         )
-
-        # GP column
+        st.write(sales_data_df2[sales_data_df2['SKU ID']==4590373])
+        #8 creates a column that returns 1 where margin% is above the required threshold, this is used to exclude high anomoly weeks with very low margin
+        #ths only downside with this approach is that it completly excludes the weeks below, instead of using elasticity to normalize those sales.
+        #Actually I think this is a good idea to completly exclude
         sales_data_df2['GP'] = np.where(
-            ((sales_data_df2['Actual Sales Margin %'] >= (min_acceptable_margin * 0.9)) |
-            ((sales_data_df2['Actual Sales Margin %'].isna()) & (sales_data_df2['OPP'] == 1))) &
-            (sales_data_df2['HRN'] == 1),
-            1,
+            ((sales_data_df2['Actual Sales Margin %'] >= (min_acceptable_margin * 0.9)) | 
+            (((sales_data_df2['Actual Sales Margin %'] == "" ) & (sales_data_df2['OPP'] == 1))) &
+            (sales_data_df2['HRN'] == 1)), 
+            1, 
             0
         )
+        st.write(sales_data_df2[sales_data_df2['SKU ID']==4590373])
+        #9
+        #This is to create a column that sumns the three and if its equal to 3 then that week meets all the 3 criteria
 
-        # OPP_GP column
         sales_data_df2['OPP_GP'] = sales_data_df2['OPP'] + sales_data_df2['GP'] + sales_data_df2['HRN']
-
-        # Calculate averages
+        st.write(sales_data_df2[sales_data_df2['SKU ID']==4590373])
+        #10 Final Calculations
+        #10.1 Average sales where all three conditions are met
         average_sales_units = sales_data_df2[sales_data_df2['OPP_GP'] == 3].groupby('SKU ID')['Actual Sales Units'].mean().reset_index()
         average_sales_units.columns = ['SKU ID', 'Av Sales U when in stock']
-
+        st.write(average_sales_units[average_sales_units['SKU ID']==4590373])
+        #10.2 Sum of the sales where all three policies are met
         sales_units_reviewed = sales_data_df2[sales_data_df2['OPP_GP'] == 3].groupby('SKU ID')['Actual Sales Units'].sum().reset_index()
         sales_units_reviewed.columns = ['SKU ID', 'Tot Sales U when in stock']
-
+        st.write(sales_units_reviewed[sales_units_reviewed['SKU ID']==4590373])
+        #10.3 Count the data points where all three policies are met
         sales_units_reviewed_count = sales_data_df2[sales_data_df2['OPP_GP'] == 3].groupby('SKU ID')['Actual Sales Units'].count().reset_index()
         sales_units_reviewed_count.columns = ['SKU ID', 'count of reviewed data point']
-
-        sales_units_total = sales_data_df2[
-            (sales_data_df2['HRN'] == 1) &
-            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)
-        ].groupby('SKU ID')['Actual Sales Units'].sum().reset_index()
+        st.write(sales_units_reviewed_count[sales_units_reviewed_count['SKU ID']==4590373])
+        #10.4 Sum of the sales for the entire historical horizon chosen
+        sales_units_total = sales_data_df2[(sales_data_df2['HRN'] == 1) & ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)].groupby('SKU ID')['Actual Sales Units'].sum().reset_index()
         sales_units_total.columns = ['SKU ID', 'Tot Sales U in horizon']
 
-        tot_average_sales_units = sales_data_df2[
-            (sales_data_df2['HRN'] == 1) &
-            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)
-        ].groupby('SKU ID')['Actual Sales Units'].mean().reset_index()
+        #10.5 average of the sales for the entire historical horizon chosen
+        tot_average_sales_units = sales_data_df2[(sales_data_df2['HRN'] == 1) & ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)].groupby('SKU ID')['Actual Sales Units'].mean().reset_index()
         tot_average_sales_units.columns = ['SKU ID', 'Tot Ave Sales U in horizon']
 
-        sales_units_total_count = sales_data_df2[
-            (sales_data_df2['HRN'] == 1) &
-            ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)
-        ].groupby('SKU ID')['Actual Sales Units'].count().reset_index()
+        #10.6 Count the data points for the entire historical horizon chosen
+        sales_units_total_count = sales_data_df2[(sales_data_df2['HRN'] == 1) & ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)].groupby('SKU ID')['Actual Sales Units'].count().reset_index()
         sales_units_total_count.columns = ['SKU ID', 'count of horizon data point']
 
-        merged_df = pd.DataFrame({'SKU ID': sales_data_df2['SKU ID'].unique()})
-        merged_df = merged_df.merge(sales_units_total, on='SKU ID', how='left')
-        merged_df = merged_df.merge(sales_units_total_count, on='SKU ID', how='left')
-        merged_df = merged_df.merge(tot_average_sales_units, on='SKU ID', how='left')
-        merged_df = merged_df.merge(sales_units_reviewed, on='SKU ID', how='left')
-        merged_df = merged_df.merge(average_sales_units, on='SKU ID', how='left')
-        merged_df = merged_df.merge(sales_units_reviewed_count, on='SKU ID', how='left')
+        #10.7 Merge the DataFrames
+        merged_df = []
+        selected_columns_df2 = sales_data_df2[['SKU ID']].drop_duplicates().reset_index(drop=True) #this gives me the original sku ids
+        merged_df = selected_columns_df2.merge(sales_units_total, on='SKU ID')
+        merged_df = merged_df.merge(sales_units_total_count, on='SKU ID')
+        merged_df = merged_df.merge(tot_average_sales_units, on='SKU ID')
+        merged_df = merged_df.merge(sales_units_reviewed, on='SKU ID')
+        merged_df = merged_df.merge(average_sales_units, on='SKU ID')
+        merged_df = merged_df.merge(sales_units_reviewed_count, on='SKU ID')
 
-        # Use_this_ave_sales_u calculation
+        #10.7 Display the merged DataFrame
+        merged_df_x = merged_df #saving in case of an error later on so I reboot from this point
+
+        #11 Derives the base average weekly sales to be used in forecasting
         merged_df['Use_this_ave_sales_u'] = np.where(
-            (merged_df['count of reviewed data point'] <= Min_no_of_data_points) |
-            ((merged_df['count of reviewed data point']/merged_df['count of horizon data point']) <= data_reduction_threshold),
-            merged_df['Av Sales U when in stock']*low_data_confidence,
+            (merged_df['count of reviewed data point'] <= Min_no_of_data_points) | 
+            ((merged_df['count of reviewed data point']/merged_df['count of horizon data point']) <= data_reduction_threshold), 
+            merged_df['Av Sales U when in stock']*low_data_confidence, 
             merged_df['Av Sales U when in stock']*confidence
         )
+        merged_df.head()
 
-        # Expected intakes
+        #12 Gets expected intakes and actual and merges them into the final df
+        #12.1 Sum of expected Intakes
         expected_filtered_df = sales_data_df[
             (sales_data_df['YearWeek'] >= expected_period_start) &
             (sales_data_df['YearWeek'] <= expected_period_end)
@@ -157,42 +177,54 @@ if st.button("Forecast"):
         expected_intakes = expected_filtered_df.groupby('SKU ID')['Expected Intake Units'].sum().reset_index()
         expected_intakes.columns = ['SKU ID', 'Expected Intake Units']
 
-        # Actual intakes in horizon
-        actual_intakes = sales_data_df2[sales_data_df2['HRN'] == 1].groupby('SKU ID')['Actual Intake Units'].sum().reset_index()
+        #12.2  Sum of actual Intakes within the selected horizon
+        actual_intakes = sales_data_df2[(sales_data_df2['HRN'] == 1)].groupby('SKU ID')['Actual Intake Units'].sum().reset_index()
         actual_intakes.columns = ['SKU ID', 'Actual Intake Units']
 
-        # Current stock
-        current_stock1 = sales_data_df[sales_data_df['YearWeek'] == max_yearweek]
+
+        #13
+        #CurrentStock
+        current_stock1 = []
+        current_stock = []
+        current_stock1 = sales_data_df[sales_data_df['YearWeek']==max_yearweek] #filters on the last week, because in our business current stock is in the current week
         current_stock = current_stock1.groupby('SKU ID')['Actual Current Stock Units'].sum().reset_index()
         current_stock.columns = ['SKU ID', 'Actual Current Stock Units']
 
-        merged_df = pd.merge(merged_df, actual_intakes, on='SKU ID', how='left')
-        merged_df['Actual Intake Units'] = merged_df['Actual Intake Units'].fillna(0, inplace=True)
-        merged_df = pd.merge(merged_df, expected_intakes, on='SKU ID', how='left')
-        merged_df['Expected Intake Units'] = merged_df['Expected Intake Units'].fillna(0, inplace=True)
-        merged_df = pd.merge(merged_df, current_stock, on='SKU ID', how='left')
-        merged_df['Actual Current Stock Units'] = merged_df['Actual Current Stock Units'].fillna(0, inplace=True)
+        #14
+        # Merge the average sales back to the filtered DataFrame
+        merged_df = pd.merge(merged_df, actual_intakes, on='SKU ID',how='left')
+        merged_df['Actual Intake Units'].fillna(0, inplace=True)
+        merged_df = pd.merge(merged_df,expected_intakes, on='SKU ID',how='left') #the limitation here is that for styles that have not gone live they will be excluded
+        merged_df['Expected Intake Units'].fillna(0, inplace=True)
+        merged_df = pd.merge(merged_df, current_stock, on='SKU ID',how='left')
+        merged_df['Actual Current Stock Units'].fillna(0, inplace=True)
+        st.write(merged_df[merged_df['SKU ID']==4590373])
 
+
+        #15
         merged_df['Total_Season_Sales'] = round(merged_df["Use_this_ave_sales_u"]*26*long_horizon_diminishing_return)
         merged_df['Total_Season_ideal_intakes'] = round(merged_df["Total_Season_Sales"]/required_seaonal_clr_percent)- merged_df['Actual Current Stock Units']
         merged_df['Total_Qtr_Sales'] = round(merged_df["Use_this_ave_sales_u"]*13*medium_horizon_diminishing_return)
         merged_df['Total_Qtr_ideal_intakes'] = round(merged_df["Total_Qtr_Sales"]/required_quartery_clr_percent)- merged_df['Actual Current Stock Units']
         merged_df['Total_9wks_Sales_once_off_repeat'] = round(merged_df["Use_this_ave_sales_u"]*8*medium_horizon_diminishing_return)
         merged_df['Total_9wks_Sales_once_off_repeat_ideal_intakes'] = round(merged_df["Total_9wks_Sales_once_off_repeat"]/required_8wks_clr_percent)- merged_df['Actual Current Stock Units']
+        st.write(merged_df[merged_df['SKU ID']==4590373])
 
-        # Additional product info
-        # Ensure these columns exist in the uploaded data or adjust as needed
-        required_cols = ['Product ID','Current RSP (incl VAT)','Image 1 URL','product_url','Brand','Department','Category Level 1','Category Level 2','Product','Size']
-        missing_cols = [c for c in required_cols if c not in sales_data_df.columns]
-        for c in missing_cols:
-            sales_data_df[c] = ""
-
+        #16
+        # Select only the necessary columns from sales_data_df
         selected_columns_df = sales_data_df[['SKU ID', 'Product ID','Current RSP (incl VAT)','Image 1 URL', 'product_url','Brand','Department','Category Level 1','Category Level 2','Product','Size']].drop_duplicates(subset='SKU ID')
 
-        selected_columns_df2 = selected_columns_df.merge(merged_df, on='SKU ID', how='left')
-        selected_columns_df2.fillna(0, inplace=True)
+        #17
+        # Merge with average_sales_final
+        selected_columns_df2 = selected_columns_df.merge(merged_df, on='SKU ID')
 
-        df_reordered = selected_columns_df2[['Brand', 'Department', 'Category Level 1', 'Category Level 2', 'SKU ID','Product ID','Product','Size','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'count of reviewed data point', 'Use_this_ave_sales_u', 'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes','Image 1 URL', 'product_url']]
+        # Replace NA with 0
+        selected_columns_df2.fillna(0,inplace=True)
+        #selected_columns_df2 ['Ideal_Summer_Intake'] = selected_columns_df2['Ideal_Intakes'] - selected_columns_df2['Actual Current Stock Units']
+
+        #18
+        df_reordered = selected_columns_df2[['Brand', 'Department', 'Category Level 1', 'Category Level 2', 'SKU ID','Product ID','Product','Size','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'count of reviewed data point', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes','Image 1 URL', 'product_url']]
+
 
         # --- Original Code Logic Ends Here ---
 
