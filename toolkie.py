@@ -167,11 +167,11 @@ if st.button("Forecast"):
         current_stock.columns = ['SKU ID', 'Actual Current Stock Units']
 
         merged_df = pd.merge(merged_df, actual_intakes, on='SKU ID', how='left')
-        merged_df = merged_df['Actual Intake Units'].fillna(0, inplace=True)
+        merged_df['Actual Intake Units'] = merged_df['Actual Intake Units'].fillna(0, inplace=True)
         merged_df = pd.merge(merged_df, expected_intakes, on='SKU ID', how='left')
-        merged_df = merged_df['Expected Intake Units'].fillna(0, inplace=True)
+        merged_df['Expected Intake Units'] = merged_df['Expected Intake Units'].fillna(0, inplace=True)
         merged_df = pd.merge(merged_df, current_stock, on='SKU ID', how='left')
-        merged_df = merged_df['Actual Current Stock Units'].fillna(0, inplace=True)
+        merged_df['Actual Current Stock Units'] = merged_df['Actual Current Stock Units'].fillna(0, inplace=True)
 
         merged_df['Total_Season_Sales'] = round(merged_df["Use_this_ave_sales_u"]*26*long_horizon_diminishing_return)
         merged_df['Total_Season_ideal_intakes'] = round(merged_df["Total_Season_Sales"]/required_seaonal_clr_percent)- merged_df['Actual Current Stock Units']
