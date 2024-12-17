@@ -146,18 +146,6 @@ with tab1:
                 step=1
             )
 
-    # Center the forecast button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.button("Generate Forecast 🚀")
-
-with tab2:
-    if 'forecast_generated' not in st.session_state:
-        st.info("Generate a forecast to see results here")
-    else:
-        # Your results display code here
-        pass
-
 # Add the rest of your calculation logic here 
 #   
 # Forecast Button
