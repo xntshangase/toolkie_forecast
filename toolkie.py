@@ -4,161 +4,188 @@ import pandas as pd
 import openpyxl
 from io import BytesIO
 
-import streamlit as st
+# Set page config
+st.set_page_config(layout="wide")
 
-# Set page config first
-st.set_page_config(
-    page_title="Forecasting Toolkie",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Custom CSS for modern styling
+# Custom CSS with blue theme
 st.markdown("""
-    <style>
-    /* Main container styling */
+<style>
+    /* Main theme colors */
+    :root {
+        --primary-blue: #2C3E50;
+        --accent-blue: #3498DB;
+        --light-blue: #EBF5FB;
+        --text-color: #2C3E50;
+    }
+
+    /* Overall page styling */
     .main {
-        padding: 2em;
+        background-color: #F8F9FA;
+        padding: 2rem;
     }
-    
+
+    .stApp {
+        margin: 0 auto;
+    }
+
     /* Header styling */
-    .header {
-        color: #1E88E5;
-        font-size: 28px;
-        font-weight: 600;
-        margin-bottom: 30px;
-        padding: 20px 0;
-        border-bottom: 2px solid #f0f2f6;
+    .header-container {
+        padding: 1rem;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
     }
-    
-    /* Section styling */
-    .section-header {
-        color: #333;
-        font-size: 18px;
-        font-weight: 500;
-        margin: 20px 0;
-        padding: 10px 0;
+
+    .page-title {
+        color: var(--primary-blue);
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
     }
-    
-    /* Input container styling */
-    .stNumberInput {
-        margin: 15px 0;
+
+    /* Card styling */
+    .card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
     }
-    
-    .stNumberInput > div > div > input {
+
+    .card-title {
+        color: var(--primary-blue);
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+
+    /* Input fields styling */
+    .stNumberInput input {
+        border: 1px solid #E0E0E0;
         border-radius: 5px;
-        border: 1px solid #ddd;
         padding: 10px;
     }
-    
-    /* File uploader styling */
-    .uploadedFile {
-        border: 2px dashed #1E88E5;
-        border-radius: 10px;
-        padding: 20px;
-        background: #f8f9fa;
+
+    .stNumberInput input:focus {
+        border-color: var(--accent-blue);
+        box-shadow: none;
     }
-    
+
     /* Button styling */
-    .stButton > button {
-        width: 100%;
-        background-color: #1E88E5;
+    .stButton>button {
+        background-color: var(--accent-blue);
         color: white;
-        padding: 12px 20px;
+        padding: 10px 20px;
         border-radius: 5px;
         border: none;
         font-weight: 500;
-        transition: all 0.3s;
+        width: 100%;
     }
-    
-    .stButton > button:hover {
-        background-color: #1976D2;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+
+    .stButton>button:hover {
+        background-color: #2980B9;
     }
-    
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
+
+    /* File uploader styling */
+    .uploadedFile {
+        border: 1px solid #E0E0E0;
+        border-radius: 5px;
+        padding: 10px;
     }
-    
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        padding: 0 24px;
-        font-size: 16px;
+
+    /* Success/Error message styling */
+    .stSuccess {
+        background-color: #D4EFDF;
+        color: #196F3D;
     }
-    </style>
+
+    .stError {
+        background-color: #FADBD8;
+        color: #943126;
+    }
+</style>
 """, unsafe_allow_html=True)
 
-# Layout with tabs
-tab1, tab2 = st.tabs(["📤 Upload & Parameters", "📊 Results"])
+# Header
+st.markdown("""
+<div class="header-container">
+    <div class="page-title">📊 Forecasting Toolkie</div>
+</div>
+""", unsafe_allow_html=True)
 
-with tab1:
-    # Create two columns
-    col1, col2 = st.columns([1, 1])
+# Main container with columns
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    # File Upload Card
+    st.markdown("""
+    <div class="card">
+        <div class="card-title">📁 Upload Data</div>
+    """, unsafe_allow_html=True)
     
-    with col1:
-        st.markdown("### Upload Data")
-        uploaded_file = st.file_uploader(
-            "Upload Excel file",
-            type=["xlsx", "xls"],
-            help="Maximum file size: 200MB"
-        )
+    uploaded_file = st.file_uploader(
+        "Upload Excel file",
+        type=["xlsx", "xls"],
+        help="Please upload your data file"
+    )
     
-    with col2:
-        st.markdown("### Forecast Parameters")
-        
-        with st.container():
-            historical_horizon_period_start = st.number_input(
-                "Historical Start (YYYYWW)",
-                value=202440,
-                step=1,
-                help="Example: 202430"
-            )
-            
-            historical_horizon_period_end = st.number_input(
-                "Historical End (YYYYWW)",
-                value=202533,
-                step=1
-            )
-            
-            min_acceptable_margin = st.number_input(
-                "Minimum Margin",
-                value=0.35,
-                step=0.01,
-                format="%.2f"
-            )
-            
-            expected_period_start = st.number_input(
-                "Expected Start (YYYYWW)",
-                value=202529,
-                step=1
-            )
-            
-            expected_period_end = st.number_input(
-                "Expected End (YYYYWW)",
-                value=202552,
-                step=1
-            )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-            fin_year = st.number_input(
-                "Financial Year",
-                value=2025,
-                step=1
-            )
+    # Parameters Card
+    st.markdown("""
+    <div class="card">
+        <div class="card-title">🎯 Forecast Parameters</div>
+    """, unsafe_allow_html=True)
+    
+    historical_horizon_period_start = st.number_input(
+        "Historical Start",
+        value=202440,
+        step=1,
+        help="Fin_Yr_Wk (eg 202430)"
+    )
+    
+    historical_horizon_period_end = st.number_input(
+        "Historical End",
+        value=202533,
+        step=1
+    )
+    
+    min_acceptable_margin = st.number_input(
+        "Min. Margin",
+        value=0.35,
+        step=0.01,
+        format="%.2f"
+    )
+    
+    expected_period_start = st.number_input(
+        "Expected Start",
+        value=202529,
+        step=1
+    )
+    
+    expected_period_end = st.number_input(
+        "Expected End",
+        value=202552,
+        step=1
+    )
+    
+    fin_year = st.number_input(
+        "Financial Year",
+        value=2025,
+        step=1
+    )
+    
+    
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    # Center the forecast button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.button("Generate Forecast 🚀")
-
-with tab2:
-    if 'forecast_generated' not in st.session_state:
-        st.info("Generate a forecast to see results here")
-    else:
-        # Your results display code here
-        pass
-
-# Add the rest of your calculation logic here
+with col2:
+    # Results Preview Card
+    st.markdown("""
+    <div class="card">
+        <div class="card-title">📈 Forecast Results</div>
+    """, unsafe_allow_html=True)
 # Forecast Button
 st.markdown('<div style="text-align: center; margin-top: 30px;">', unsafe_allow_html=True)
 if st.button("Generate Forecast 🚀"):
