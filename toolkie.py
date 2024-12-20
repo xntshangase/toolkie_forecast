@@ -407,6 +407,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Add footer
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    Developed by flow
+    Developed by F.Flow
 </div>
 """, unsafe_allow_html=True)            
