@@ -197,25 +197,24 @@ if st.button("Generate Forecast 🚀"):
                 st.stop()
             
             #4 Convert 'Actual Sales Margin %' to numeric
+            sales_data_static_v1_df = sales_data_df #this is a df whic is storing the original sales data
             sales_data_df['Actual Sales Margin %'] = pd.to_numeric(sales_data_df['Actual Sales Margin %'], errors='coerce')
             sales_data_df['YearWeek'] = pd.to_numeric(sales_data_df['YearWeek'], errors='coerce')
-            sales_data_dfuse = sales_data_df #saving for later in case I have to rerun
             #sales_data_df.to_parquet('sales_data_df.parquet', index=False)
             # Step 1: Drop rows where 'Fin Year' is "-"
             sales_data_dfere = sales_data_df[sales_data_df['Fin Year'] != "-"] #this does nothing because sales_data_dfere isn't being used anywhere else
 
 
             #5 Calculation 1: Average Sales
-            #5.1  Convert YearWeek to integers, so we can sort
-            sales_data_df['YearWeek'] = pd.to_numeric(sales_data_df['YearWeek'], errors='coerce')
-            #5.2 Calculate the average sales for each product ID I use this to determine "enough" stock, where stock is less than this its deemed that the week didn't have enough stock
+            
+            #5.1 Calculate the average sales for each product ID I use this to determine "enough" stock, where stock is less than this its deemed that the week didn't have enough stock
             average_sales1 = sales_data_df[
                 (sales_data_df['YearWeek'] >= historical_horizon_period_start)&
                 (sales_data_df['YearWeek'] <= historical_horizon_period_end)
             ].groupby('SKU ID')['Actual Sales Units'].mean().reset_index()
             average_sales1.columns = ['SKU ID', 'Average Sales']
             
-            #5.3 Merge the average sales back to the filtered DataFrame
+            #5.2 Merge the average sales back to the filtered DataFrame
             sales_data_df2 = []
             sales_data_df2 = sales_data_df.merge(average_sales1, on='SKU ID')
 
@@ -279,8 +278,8 @@ if st.button("Generate Forecast 🚀"):
 
             #10.7 Merge the DataFrames
             merged_df = []
-            selected_columns_df2 = sales_data_df2[['SKU ID']].drop_duplicates().reset_index(drop=True) #this gives me the original sku ids
-            merged_df = selected_columns_df2.merge(sales_units_total, on='SKU ID')
+            unique_skus_df = sales_data_static_v1_df[['SKU ID']].drop_duplicates().reset_index(drop=True) #this gives me the original sku ids with no duplicates
+            merged_df = unique_skus_df.merge(sales_units_total, on='SKU ID')
             merged_df = merged_df.merge(sales_units_total_count, on='SKU ID')
             merged_df = merged_df.merge(tot_average_sales_units, on='SKU ID')
             merged_df = merged_df.merge(sales_units_reviewed, on='SKU ID')
@@ -301,9 +300,9 @@ if st.button("Generate Forecast 🚀"):
 
             #12 Gets expected intakes and actual and merges them into the final df
             #12.1 Sum of expected Intakes
-            expected_filtered_df = sales_data_df[
-                (sales_data_df['YearWeek'] >= expected_period_start) &
-                (sales_data_df['YearWeek'] <= expected_period_end)
+            expected_filtered_df = sales_data_static_v1_df[
+                (sales_data_static_v1_df['YearWeek'] >= expected_period_start) &
+                (sales_data_static_v1_df['YearWeek'] <= expected_period_end)
             ]
             expected_intakes = expected_filtered_df.groupby('SKU ID')['Expected Intake Units'].sum().reset_index()
             expected_intakes.columns = ['SKU ID', 'Expected Intake Units']
@@ -317,7 +316,7 @@ if st.button("Generate Forecast 🚀"):
             #CurrentStock
             current_stock1 = []
             current_stock = []
-            current_stock1 = sales_data_df[sales_data_df['YearWeek']==max_yearweek] #filters on the last week, because in our business current stock is in the current week
+            current_stock1 = sales_data_static_v1_df[sales_data_static_v1_df['YearWeek']==max_yearweek] #filters on the last week, because in our business current stock is in the current week
             current_stock = current_stock1.groupby('SKU ID')['Actual Current Stock Units'].sum().reset_index()
             current_stock.columns = ['SKU ID', 'Actual Current Stock Units']
 
@@ -408,6 +407,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # Add footer
 st.markdown("""
 <div style='text-align: center; color: #666; padding: 20px;'>
-    Developed with ❤️ by Flint Ntshangase
+    Developed by flow
 </div>
 """, unsafe_allow_html=True)            
