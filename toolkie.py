@@ -281,7 +281,7 @@ if st.button("Generate Forecast 🚀"):
             
             #10.3 Count the data points where all three policies are met
             sales_units_reviewed_count = sales_data_df2[sales_data_df2['OPP_GP'] == 3].groupby('SKU ID')['Actual Sales Units'].count().reset_index()
-            sales_units_reviewed_count.columns = ['SKU ID', 'count of reviewed data point']
+            sales_units_reviewed_count.columns = ['SKU ID', 'no_of_weeks_reviewed']
             
             #10.4 Sum of the sales for the entire historical horizon chosen
             sales_units_total = sales_data_df2[(sales_data_df2['HRN'] == 1) & ((sales_data_df2['Actual EOW Stock Units']+sales_data_df2['Actual Sales Units']) >= 2)].groupby('SKU ID')['Actual Sales Units'].sum().reset_index()
@@ -310,8 +310,8 @@ if st.button("Generate Forecast 🚀"):
 
             #11 Derives the base average weekly sales to be used in forecasting
             merged_df['Use_this_ave_sales_u'] = np.where(
-                (merged_df['count of reviewed data point'] <= Min_no_of_data_points) | 
-                ((merged_df['count of reviewed data point']/merged_df['count of horizon data point']) <= data_reduction_threshold), 
+                (merged_df['no_of_weeks_reviewed'] <= Min_no_of_data_points) | 
+                ((merged_df['no_of_weeks_reviewed']/merged_df['count of horizon data point']) <= data_reduction_threshold), 
                 merged_df['Av Sales U when in stock']*low_data_confidence, 
                 merged_df['Av Sales U when in stock']*confidence
             )
@@ -371,7 +371,7 @@ if st.button("Generate Forecast 🚀"):
             #selected_columns_df2 ['Ideal_Summer_Intake'] = selected_columns_df2['Ideal_Intakes'] - selected_columns_df2['Actual Current Stock Units']
 
             #18
-            df_reordered = selected_columns_df2[['Brand', 'Department', 'Category Level 1', 'Category Level 2', 'SKU ID','Product ID','Product','Size','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'count of reviewed data point', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes','Image 1 URL', 'product_url']]
+            df_reordered = selected_columns_df2[['Brand', 'Department', 'Category Level 1', 'Category Level 2', 'SKU ID','Product ID','Product','Size','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'no_of_weeks_reviewed', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes','Image 1 URL', 'product_url']]
             # First, get the sum of Total_Season_Sales by Product ID
             #season_sales_sum = df_reordered.groupby('Product ID')['Total_Season_Sales'].sum().reset_index()
             # Get unique product information with max RSP
@@ -401,7 +401,7 @@ if st.button("Generate Forecast 🚀"):
                 'count of horizon data point': 'max', 
                 'Tot Sales U when in stock': 'sum',
                 'Av Sales U when in stock': 'sum',
-                'count of reviewed data point': 'max',
+                'no_of_weeks_reviewed': 'max',
                 'Use_this_ave_sales_u': 'sum',
                 'Total_Season_Sales': 'sum',
                 'Total_Season_ideal_intakes': 'sum',
@@ -417,7 +417,7 @@ if st.button("Generate Forecast 🚀"):
             selected_columns_df_3.fillna(0,inplace=True)
             selected_columns_df_4 = selected_columns_df_3.merge(df_summed, on='Product ID')
             selected_columns_df_4.fillna(0,inplace=True)
-            df_reordered_2 = selected_columns_df_4[['Image 1 URL','Brand', 'Department', 'Category Level 1', 'Category Level 2', 'Product ID','Product','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'count of reviewed data point', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes', 'product_url']]
+            df_reordered_2 = selected_columns_df_4[['Image 1 URL','Brand', 'Department', 'Category Level 1', 'Category Level 2', 'Product ID','Product','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'no_of_weeks_reviewed', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes', 'product_url']]
             
             def prepare_interactive_table(df):
                 display_df = df.copy()
@@ -505,8 +505,8 @@ if st.button("Generate Forecast 🚀"):
                     column_order=["Image", "Brand", "Department", "Category Level 1", "Category Level 2", 
                                 "Product ID","Product","Current RSP (incl VAT)",
                                 "Actual Intake Units","Actual Current Stock Units","Expected Intake Units",
-                                "Tot Ave Sales U in horizon", "count of horizon data point", "Tot Sales U when in stock", 
-                                "Av Sales U when in stock", "count of reviewed data point", "Use_this_ave_sales_u",   
+                                "Tot Ave Sales U in horizon", "no_of_weeks_reviewed",  
+                                "Av Sales U when in stock", "Use_this_ave_sales_u",   
                                 "Total_Season_Sales", "Total_Season_ideal_intakes", "Total_Qtr_Sales", "Total_Qtr_ideal_intakes", 
                                 "Total_9wks_Sales_once_off_repeat", "Total_9wks_Sales_once_off_repeat_ideal_intakes", "product_url"]
                 )
