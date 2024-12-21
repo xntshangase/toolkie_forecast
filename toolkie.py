@@ -502,7 +502,7 @@ if st.button("Generate Forecast 🚀"):
                     },
                     use_container_width=True,
                     hide_index=True,
-                    height='medium',
+                    height="medium",
                     column_order=["Image", "Brand", "Department", "Category Level 1", "Category Level 2", 
                                 "Product ID","Product","Current RSP (incl VAT)",
                                 "Actual Intake Units","Actual Current Stock Units","Expected Intake Units",
