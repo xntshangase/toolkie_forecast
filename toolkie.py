@@ -1,10 +1,29 @@
 import streamlit as st
-import numpy as np
-import pandas as pd
-import openpyxl
+# Core imports
+import os
+import string
+import datetime as dt
 from io import BytesIO
 
+# Data processing
+import numpy as np
+import pandas as pd
+from pandas.io.formats.style import Styler
+
+# File handling
+import openpyxl
+import requests
+
+# Visualization
+import matplotlib.pyplot as plt
+from PIL import Image
+
+# Web framework
 import streamlit as st
+from dash import Dash, dash_table, html
+import dash_bootstrap_components as dbc
+from flask import Flask
+
 
 # Set page config first
 st.set_page_config(
@@ -372,12 +391,137 @@ if st.button("Generate Forecast 🚀"):
             #summary_df = summary_df.sort_values('Total_Season_Sales', ascending=False)
 
             # Add this after your calculations but before displaying the results
-            def render_images(df):
-                return df.to_html(escape=False, formatters=dict( **{
-                    'Image 1 URL': lambda x: f'<img src="{x}" width="100" />' if pd.notnull(x) else ''
-                }))
-                
-                # Add custom CSS to make the table scrollable and style it
+            df_summed = []
+            df_summed = df_reordered.groupby('Product ID').agg({
+                'Current RSP (incl VAT)':'mean',
+                'Actual Intake Units': 'sum',
+                'Actual Current Stock Units': 'sum',
+                'Expected Intake Units': 'sum',
+                'Tot Ave Sales U in horizon': 'sum',
+                'count of horizon data point': 'max', 
+                'Tot Sales U when in stock': 'sum',
+                'Av Sales U when in stock': 'sum',
+                'count of reviewed data point': 'max',
+                'Use_this_ave_sales_u': 'sum',
+                'Total_Season_Sales': 'sum',
+                'Total_Season_ideal_intakes': 'sum',
+                'Total_Qtr_Sales': 'sum',
+                'Total_Qtr_ideal_intakes': 'sum',
+                'Total_9wks_Sales_once_off_repeat': 'sum',
+                'Total_9wks_Sales_once_off_repeat_ideal_intakes': 'sum'
+            }).reset_index()
+
+            # Select only the necessary columns from sales_data_df
+            selected_columns_df_3 = []
+            selected_columns_df_3 = sales_data_static_v1_df[['Product ID','Image 1 URL', 'product_url','Brand','Department','Category Level 1','Category Level 2','Product']].drop_duplicates(subset='Product ID')
+            selected_columns_df_3.fillna(0,inplace=True)
+            selected_columns_df_4 = selected_columns_df_3.merge(df_summed, on='Product ID')
+            selected_columns_df_4.fillna(0,inplace=True)
+            df_reordered_2 = selected_columns_df_4[['Image 1 URL','Brand', 'Department', 'Category Level 1', 'Category Level 2', 'Product ID','Product','Current RSP (incl VAT)','Actual Intake Units','Actual Current Stock Units','Expected Intake Units','Tot Ave Sales U in horizon', 'count of horizon data point', 'Tot Sales U when in stock', 'Av Sales U when in stock', 'count of reviewed data point', 'Use_this_ave_sales_u',   'Total_Season_Sales', 'Total_Season_ideal_intakes', 'Total_Qtr_Sales', 'Total_Qtr_ideal_intakes', 'Total_9wks_Sales_once_off_repeat', 'Total_9wks_Sales_once_off_repeat_ideal_intakes', 'product_url']]
+            
+            def prepare_interactive_table(df):
+                display_df = df.copy()
+                display_df['Image'] = display_df['Image 1 URL']
+                display_df = display_df.drop(['Image 1 URL', 'product_url'], axis=1)
+                return display_df
+            # Prepare initial data
+            display_df = prepare_interactive_table(df_reordered_2)
+
+            # Initialize session state
+            if 'display_df' not in st.session_state:
+                st.session_state.display_df = prepare_interactive_table(df_reordered_2)
+                st.session_state.filtered_df = st.session_state.display_df.copy()
+
+            # Debug: Print initial row count
+            st.sidebar.write(f"Total rows before filtering: {len(st.session_state.display_df)}")
+
+            # Add filters in sidebar
+            st.sidebar.markdown("### Data Filters")
+
+            # Add search box with debug
+            search_term = st.sidebar.text_input("Search Products", key='search')
+
+            # Add dropdown filters with counts
+            brand_filter = st.sidebar.multiselect(
+                "Filter by Brand",
+                options=sorted(st.session_state.display_df["Brand"].unique()),
+                default=[],
+                key='brand_filter'
+            )
+
+            dept_filter = st.sidebar.multiselect(
+                "Filter by Department",
+                options=sorted(st.session_state.display_df["Department"].unique()),
+                default=[],
+                key='dept_filter'
+            )
+
+            cat_filter = st.sidebar.multiselect(
+                "Filter by Category",
+                options=sorted(st.session_state.display_df["Category Level 1"].unique()),
+                default=[],
+                key='cat_filter'
+            )
+
+            # Apply filters
+            filtered_df = st.session_state.display_df.copy()
+
+            if search_term:
+                mask = filtered_df.astype(str).agg(' '.join, axis=1).str.contains(search_term, case=False)
+                filtered_df = filtered_df[mask]
+
+            if brand_filter:
+                filtered_df = filtered_df[filtered_df["Brand"].isin(brand_filter)]
+
+            if dept_filter:
+                filtered_df = filtered_df[filtered_df["Department"].isin(dept_filter)]
+
+            if cat_filter:
+                filtered_df = filtered_df[filtered_df["Category Level 1"].isin(cat_filter)]
+
+            # Update filtered dataframe in session state
+            st.session_state.filtered_df = filtered_df
+                        # Display filtered dataframe
+            
+            with tab2:
+                st.subheader("Forecast Results")
+                st.dataframe(
+                    filtered_df,
+                    column_config={
+                        "Image": st.column_config.ImageColumn(
+                            "Product Image",
+                            help="Product image",
+                            width=200,
+                        ),
+                        "Brand": st.column_config.TextColumn("Brand", width="medium"),
+                        "Department": st.column_config.TextColumn("Department", width="medium"),
+                        "Current RSP (incl VAT)": st.column_config.NumberColumn(
+                            "Price",
+                            format="R%.2f"
+                        )
+                    },
+                    use_container_width=True,
+                    hide_index=True,
+                    height=300,
+                    column_order=["Image", "Brand", "Department", "Category Level 1", "Category Level 2", 
+                                "Product ID","Product","Current RSP (incl VAT)",
+                                "Actual Intake Units","Actual Current Stock Units","Expected Intake Units",
+                                "Tot Ave Sales U in horizon", "count of horizon data point", "Tot Sales U when in stock", 
+                                "Av Sales U when in stock", "count of reviewed data point", "Use_this_ave_sales_u",   
+                                "Total_Season_Sales", "Total_Season_ideal_intakes", "Total_Qtr_Sales", "Total_Qtr_ideal_intakes", 
+                                "Total_9wks_Sales_once_off_repeat", "Total_9wks_Sales_once_off_repeat_ideal_intakes", "product_url"]
+                )
+
+            #def render_images(df):
+            #    return df.to_html(escape=False, formatters=dict(**{
+            #        'Image 1 URL': lambda x: f'<img src="{x}" width="100" />' if pd.notnull(x) else ''
+            #    }))
+
+            # Assuming df_reordered is your DataFrame
+            #html_table = render_images(df_reordered_2)
+
+            # Display the merged DataFrame with images in Streamlit
+            #st.markdown(html_table, unsafe_allow_html=True)
 
            
             # --- Original Code Logic Ends Here ---
