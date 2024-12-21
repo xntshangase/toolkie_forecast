@@ -109,14 +109,14 @@ with tab1:
         
         with st.container():
             historical_horizon_period_start = st.number_input(
-                "Historical Start (YYYYWW)",
+                "Historical Start (FINYWW)",
                 value=202440,
                 step=1,
                 help="Example: 202430"
             )
             
             historical_horizon_period_end = st.number_input(
-                "Historical End (YYYYWW)",
+                "Historical End (FINYWW)",
                 value=202533,
                 step=1
             )
@@ -129,13 +129,13 @@ with tab1:
             )
             
             expected_period_start = st.number_input(
-                "Expected Start (YYYYWW)",
+                "Expected Start (FINYWW)",
                 value=202529,
                 step=1
             )
             
             expected_period_end = st.number_input(
-                "Expected End (YYYYWW)",
+                "Expected End (FINYWW)",
                 value=202552,
                 step=1
             )
