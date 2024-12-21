@@ -485,54 +485,6 @@ if st.button("Generate Forecast 🚀"):
             
             with tab2:
                 st.subheader("Forecast Results")
-                # Add filters in sidebar
-                st.sidebar.markdown("### Data Filters")
-
-                # Add search box
-                search_term = st.sidebar.text_input("Search Products", key='search')
-
-                # Add dropdown filters
-                brand_filter = st.sidebar.multiselect(
-                    "Filter by Brand",
-                    options=sorted(st.session_state.display_df["Brand"].unique()),
-                    default=[],
-                    key='brand_filter'
-                )
-
-                dept_filter = st.sidebar.multiselect(
-                    "Filter by Department",
-                    options=sorted(st.session_state.display_df["Department"].unique()),
-                    default=[],
-                    key='dept_filter'
-                )
-
-                cat_filter = st.sidebar.multiselect(
-                    "Filter by Category",
-                    options=sorted(st.session_state.display_df["Category Level 1"].unique()),
-                    default=[],
-                    key='cat_filter'
-                )
-
-                # Apply filters
-                filtered_df = st.session_state.display_df.copy()
-
-                if search_term:
-                    mask = filtered_df.astype(str).agg(' '.join, axis=1).str.contains(search_term, case=False)
-                    filtered_df = filtered_df[mask]
-
-                if brand_filter:
-                    filtered_df = filtered_df[filtered_df["Brand"].isin(brand_filter)]
-
-                if dept_filter:
-                    filtered_df = filtered_df[filtered_df["Department"].isin(dept_filter)]
-
-                if cat_filter:
-                    filtered_df = filtered_df[filtered_df["Category Level 1"].isin(cat_filter)]
-
-                # Update filtered dataframe in session state
-                st.session_state.filtered_df = filtered_df
-
-                # Display filtered dataframe
                 st.dataframe(
                     filtered_df,
                     column_config={
