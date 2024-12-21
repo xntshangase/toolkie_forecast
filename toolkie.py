@@ -432,56 +432,56 @@ if st.button("Generate Forecast 🚀"):
                 st.session_state.display_df = prepare_interactive_table(df_reordered_2)
                 st.session_state.filtered_df = st.session_state.display_df.copy()
 
-            # Debug: Print initial row count
-            st.sidebar.write(f"Total rows before filtering: {len(st.session_state.display_df)}")
+            # # Debug: Print initial row count
+            # st.sidebar.write(f"Total rows before filtering: {len(st.session_state.display_df)}")
 
-            # Add filters in sidebar
-            st.sidebar.markdown("### Data Filters")
+            # # Add filters in sidebar
+            # st.sidebar.markdown("### Data Filters")
 
-            # Add search box with debug
-            search_term = st.sidebar.text_input("Search Products", key='search')
+            # # Add search box with debug
+            # search_term = st.sidebar.text_input("Search Products", key='search')
 
-            # Add dropdown filters with counts
-            brand_filter = st.sidebar.multiselect(
-                "Filter by Brand",
-                options=sorted(st.session_state.display_df["Brand"].unique()),
-                default=[],
-                key='brand_filter'
-            )
+            # # Add dropdown filters with counts
+            # brand_filter = st.sidebar.multiselect(
+            #     "Filter by Brand",
+            #     options=sorted(st.session_state.display_df["Brand"].unique()),
+            #     default=[],
+            #     key='brand_filter'
+            # )
 
-            dept_filter = st.sidebar.multiselect(
-                "Filter by Department",
-                options=sorted(st.session_state.display_df["Department"].unique()),
-                default=[],
-                key='dept_filter'
-            )
+            # dept_filter = st.sidebar.multiselect(
+            #     "Filter by Department",
+            #     options=sorted(st.session_state.display_df["Department"].unique()),
+            #     default=[],
+            #     key='dept_filter'
+            # )
 
-            cat_filter = st.sidebar.multiselect(
-                "Filter by Category",
-                options=sorted(st.session_state.display_df["Category Level 1"].unique()),
-                default=[],
-                key='cat_filter'
-            )
+            # cat_filter = st.sidebar.multiselect(
+            #     "Filter by Category",
+            #     options=sorted(st.session_state.display_df["Category Level 1"].unique()),
+            #     default=[],
+            #     key='cat_filter'
+            # )
 
-            # Apply filters
+            # # Apply filters
             filtered_df = st.session_state.display_df.copy()
 
-            if search_term:
-                mask = filtered_df.astype(str).agg(' '.join, axis=1).str.contains(search_term, case=False)
-                filtered_df = filtered_df[mask]
+            # if search_term:
+            #     mask = filtered_df.astype(str).agg(' '.join, axis=1).str.contains(search_term, case=False)
+            #     filtered_df = filtered_df[mask]
 
-            if brand_filter:
-                filtered_df = filtered_df[filtered_df["Brand"].isin(brand_filter)]
+            # if brand_filter:
+            #     filtered_df = filtered_df[filtered_df["Brand"].isin(brand_filter)]
 
-            if dept_filter:
-                filtered_df = filtered_df[filtered_df["Department"].isin(dept_filter)]
+            # if dept_filter:
+            #     filtered_df = filtered_df[filtered_df["Department"].isin(dept_filter)]
 
-            if cat_filter:
-                filtered_df = filtered_df[filtered_df["Category Level 1"].isin(cat_filter)]
+            # if cat_filter:
+            #     filtered_df = filtered_df[filtered_df["Category Level 1"].isin(cat_filter)]
 
-            # Update filtered dataframe in session state
-            st.session_state.filtered_df = filtered_df
-                        # Display filtered dataframe
+            # # Update filtered dataframe in session state
+            # st.session_state.filtered_df = filtered_df
+            #             # Display filtered dataframe
             
             with tab2:
                 st.subheader("Forecast Results")
