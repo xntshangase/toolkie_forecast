@@ -25,21 +25,42 @@ import dash_bootstrap_components as dbc
 from flask import Flask
 
 
+
 # Set page config first
 st.set_page_config(
     page_title="Forecasting Toolkie",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 # Hide the menu header
 hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown("""
+    <style>
+    .header {
+        background-color: #f7f7f7; /* Light grey background */
+        padding: 20px;
+        text-align: center;
+        color: blue; /* Blue text color */
+    }
+    .subheader {
+        text-align: center;
+        font-size: 18px;
+        color: #669; /* Dark grey text color */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("<h1 class='header'>The Toolkie</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subheader'>A Planner's Bestfriend</p>", unsafe_allow_html=True)
+
+
+
 # Custom CSS for modern styling
 st.markdown("""
     <style>
