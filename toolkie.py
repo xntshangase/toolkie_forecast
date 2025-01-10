@@ -204,6 +204,34 @@ if st.button("Generate Forecast 🚀"):
         with st.spinner('Generating forecast... Please wait...'):
             # Read the uploaded Excel file into a DataFrame
             sales_data_df = pd.read_excel(uploaded_file)
+
+            column_mapping = {
+                                'Product Brand': 'Brand',
+                                'Product Category Level 1': 'Category Level 1',
+                                'Product Category Level 2': 'Category Level 2',
+                                'Product Department Name': 'Department',
+                                'Product Product ID': 'Product ID',
+                                'Product Product': 'Product',
+                                'Self Service SKU ID': 'SKU ID',
+                                'SKU Max SKU Value @RSP': 'Current RSP (incl VAT)',
+                                'Self Service: Calendar Fin Year': 'Fin Year',
+                                'Self Service: Calendar Fin Week': 'Week',
+                                'SKU Size Value': 'Size',
+                                'Purchase Order Sum Actual Intake Units': 'Actual Intake Units',
+                                'Order Sum COGS Amount': 'Actual COGS',
+                                'Order Sales Margin Percentage': 'Actual Sales Margin %',
+                                'Order Sum Sales Units': 'Actual Sales Units',
+                                'Purchase Order Sum Expected Intake Units': 'Expected Intake Units',
+                                'Stock (Current) Sum Current Saleable Stock Units': 'Actual Current Stock Units',
+                                'Stock (History) Sum Saleable Stock Units - EOW': 'Actual EOW Stock Units',
+                                'Order Sum Net Revenue Amount': 'Actual Revenue',
+                                'Product Image URL': 'Image URL',
+                                'Order Sum Sales Margin Amount': 'More than Optimum'
+                            }
+                            
+            # Rename the columns
+            sales_data_df.rename(columns=column_mapping, inplace=True)
+
             
             # --- Original Code Logic Integration Starts Here ---
             
