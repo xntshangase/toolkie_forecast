@@ -205,7 +205,7 @@ if st.button("Generate Forecast 🚀"):
             # Read the uploaded Excel file into a DataFrame
             sales_data_df = pd.read_excel(uploaded_file)
 
-            column_mapping = {
+            #column_mapping = {
                                 'Product Brand': 'Brand',
                                 'Product Category Level 1': 'Category Level 1',
                                 'Product Category Level 2': 'Category Level 2',
@@ -230,7 +230,7 @@ if st.button("Generate Forecast 🚀"):
                             }
                             
             # Rename the columns
-            sales_data_df.rename(columns=column_mapping, inplace=True)
+            #sales_data_df.rename(columns=column_mapping, inplace=True)
 
             
             # --- Original Code Logic Integration Starts Here ---
