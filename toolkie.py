@@ -204,6 +204,11 @@ if st.button("Generate Forecast 🚀"):
         with st.spinner('Generating forecast... Please wait...'):
             # Read the uploaded Excel file into a DataFrame
             sales_data_df = pd.read_excel(uploaded_file)
+            sales_data_df.rename(columns={
+                'Image URL.1': 'Image 1 URL',  # Replace 'Image URL' with your intended name
+                'Product URL': 'product_url'}, inplace=True)
+            # Convert Actual Sales Margin % to numeric
+            #sales_data_df['Actual Sales Margin %'] = pd.to_numeric(sales_data_df['Actual Sales Margin %'], errors='coerce')
             
             # --- Original Code Logic Integration Starts Here ---
             
