@@ -61,7 +61,7 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 st.markdown("<h1 class='header'>The Toolkie</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subheader'>A Planner's Bestfriend</p>", unsafe_allow_html=True)
-
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # Custom CSS for modern styling
 st.markdown("""
