@@ -38,27 +38,29 @@ hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;} 
     </style>
 """
-st.markdown("""
-    <style>
-    .header {
-        background-color: #f7f7f7; /* Light grey background */
-        padding: 20px;
-        text-align: center;
-        color: blue; /* Blue text color */
-    }
-    .subheader {
-        text-align: center;
-        font-size: 18px;
-        color: #669; /* Dark grey text color */
-    }
-    </style>
-""", unsafe_allow_html=True)
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# st.markdown("""
+#     <style>
+#     .header {
+#         background-color: #f7f7f7; /* Light grey background */
+#         padding: 20px;
+#         text-align: center;
+#         color: blue; /* Blue text color */
+#     }
+#     .subheader {
+#         text-align: center;
+#         font-size: 18px;
+#         color: #669; /* Dark grey text color */
+#     }
+#     </style>
+# """, unsafe_allow_html=True)
 
 st.markdown("<h1 class='header'>The Toolkie</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subheader'>A Planner's Bestfriend</p>", unsafe_allow_html=True)
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 
 # Custom CSS for modern styling
